@@ -18,6 +18,9 @@ package org.apache.ibatis.datasource.pooled;
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSourceFactory;
 
 /**
+ *
+ * JDBC 连接的创建是非常耗时的，从数据库这一侧看，能够建立的连接数也是有限的，
+ * 所以在绝大多数场景中，我们都需要使用数据库连接池来缓存、复用数据库连接
  * @author Clinton Begin
  */
 public class PooledDataSourceFactory extends UnpooledDataSourceFactory {

@@ -40,7 +40,10 @@ import org.apache.ibatis.reflection.ArrayUtil;
  */
 public abstract class BaseJdbcLogger {
 
+    // 用于记录绑定 SQL 参数涉及的全部 set*() 方法名称，例如 setString() 方法、setInt() 方法等
     protected static final Set<String> SET_METHODS;
+
+    //用于记录执行 SQL 语句涉及的所有方法名称，例如 execute() 方法、executeUpdate() 方法、executeQuery() 方法、addBatch() 方法等
     protected static final Set<String> EXECUTE_METHODS = new HashSet<>();
 
     private final Map<Object, Object> columnMap = new HashMap<>();

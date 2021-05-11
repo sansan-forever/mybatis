@@ -54,11 +54,33 @@ import org.apache.ibatis.session.Configuration;
  */
 public final class TypeHandlerRegistry {
 
+    /**
+     * 该集合记录了 JdbcType 与 TypeHandler 之间的关联关系。JdbcType 是一个枚举类型，每个 JdbcType 枚举值对应一种 JDBC 类型，
+     * 例如，JdbcType.VARCHAR 对应的就是 JDBC 中的 varchar 类型。在从 ResultSet 中读取数据的时候，
+     * 就会从 JDBC_TYPE_HANDLER_MAP 集合中根据 JDBC 类型查找对应的 TypeHandler，将数据转换成 Java 类型
+     */
     private final Map<JdbcType, TypeHandler<?>> jdbcTypeHandlerMap = new EnumMap<>(JdbcType.class);
+
+    /**
+     * 该集合第一层 Key 是需要转换的 Java 类型，第二层 Key 是转换的目标 JdbcType，
+     * 最终的 Value 是完成此次转换时所需要使用的 TypeHandler 对象。
+     * 那为什么要有两层 Map 的设计呢？
+     * 这里我们举个例子：Java 类型中的 String 可能转换成数据库中的 varchar、char、text 等多种类型，存在一对多关系，
+     * 所以就可能有不同的 TypeHandler 实现。
+     */
     private final Map<Type, Map<JdbcType, TypeHandler<?>>> typeHandlerMap = new ConcurrentHashMap<>();
+
+
     private final TypeHandler<Object> unknownTypeHandler;
+
+    /**
+     * 该集合记录了全部 TypeHandler 的类型以及对应的 TypeHandler 实例对象。
+     */
     private final Map<Class<?>, TypeHandler<?>> allTypeHandlersMap = new HashMap<>();
 
+    /**
+     * 空 TypeHandler 集合的标识，默认值为 Collections.emptyMap()
+     */
     private static final Map<JdbcType, TypeHandler<?>> NULL_TYPE_HANDLER_MAP = Collections.emptyMap();
 
     private Class<? extends TypeHandler> defaultEnumTypeHandler = EnumTypeHandler.class;
@@ -485,7 +507,7 @@ public final class TypeHandlerRegistry {
     }
 
     // scan
-
+    //包扫描
     public void register(String packageName) {
         ResolverUtil<Class<?>> resolverUtil = new ResolverUtil<>();
         resolverUtil.find(new ResolverUtil.IsA(TypeHandler.class), packageName);

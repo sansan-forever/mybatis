@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.ibatis.reflection.invoker.Invoker;
 import org.junit.jupiter.api.Assertions;
@@ -33,7 +35,15 @@ class ReflectorTest {
   void testGetSetterType() {
     ReflectorFactory reflectorFactory = new DefaultReflectorFactory();
     Reflector reflector = reflectorFactory.findForClass(Section.class);
+    //Reflector reflector = reflectorFactory.findForClass(String.class);
     Assertions.assertEquals(Long.class, reflector.getSetterType("id"));
+  }
+
+  @Test
+  void testConcurrentHashMap() {
+    final ConcurrentMap<String, Student> reflectorMap = new ConcurrentHashMap<>();
+    reflectorMap.computeIfAbsent("1", Student::new);
+    System.out.println(1);
   }
 
   @Test

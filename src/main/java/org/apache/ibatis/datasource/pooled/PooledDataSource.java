@@ -33,6 +33,14 @@ import org.apache.ibatis.logging.LogFactory;
 
 /**
  * This is a simple, synchronous, thread-safe database connection pool.
+ * 使用池化技术缓存数据库连接会带来很多好处
+ * 在空闲时段缓存一定数量的数据库连接备用，防止被突发流量冲垮；
+ *
+ * 实现数据库连接的重用，从而提高系统的响应速度；
+ *
+ * 控制数据库连接上限，防止连接过多造成数据库假死；
+ *
+ * 统一管理数据库连接，避免连接泄漏。
  *
  * @author Clinton Begin
  */
@@ -40,6 +48,7 @@ public class PooledDataSource implements DataSource {
 
     private static final Log log = LogFactory.getLog(PooledDataSource.class);
 
+    //管理连接 PooledState 中维护的数据库连接并不是真正的数据库连接（不是 java.sql.Connection 对象），而是 PooledConnection 对象
     private final PoolState state = new PoolState(this);
 
     private final UnpooledDataSource dataSource;
@@ -362,6 +371,17 @@ public class PooledDataSource implements DataSource {
         return ("" + url + username + password).hashCode();
     }
 
+    /**
+     * 1.从活跃连接集合（即前面提到的 activeConnections 集合）中删除传入的 PooledConnection 对象。
+     *
+     * 2.检测该 PooledConnection 对象是否可用。如果连接已不可用，则递增 badConnectionCount 字段进行统计，之后，直接丢弃 PooledConnection 对象即可。如果连接依旧可用，则执行下一步。
+     *
+     * 3.检测当前 PooledDataSource 连接池中的空闲连接是否已经达到上限值。如果达到上限值，则 PooledConnection 无法放回到池中，正常关闭其底层的数据库连接即可。如果未达到上限值，则继续执行下一步。
+     *
+     * 4.将底层连接重新封装成 PooledConnection 对象，并添加到空闲连接集合（也就是前面提到的 idleConnections 集合），然后唤醒所有阻塞等待空闲连接的线程
+     * @param conn
+     * @throws SQLException
+     */
     protected void pushConnection(PooledConnection conn) throws SQLException {
         synchronized (state) {
             state.activeConnections.remove(conn); // 步骤1：从活跃连接集合中删除该连接
@@ -415,6 +435,7 @@ public class PooledDataSource implements DataSource {
         }
     }
 
+    // 获取 PooledConnection 对象
     private PooledConnection popConnection(String username, String password) throws SQLException {
         boolean countedWait = false;
         PooledConnection conn = null;
@@ -423,7 +444,7 @@ public class PooledDataSource implements DataSource {
 
         while (conn == null) {
             synchronized (state) { // 加锁同步
-                // 步骤1：检测空闲连接集合
+                // 步骤1：检测空闲连接集合 检测当前连接池中是否有空闲的有效连接，如果有，则直接返回连接；如果没有，则继续执行下一步
                 if (!state.idleConnections.isEmpty()) {
                     // 获取空闲连接
                     conn = state.idleConnections.remove(0);
@@ -431,7 +452,7 @@ public class PooledDataSource implements DataSource {
                         log.debug("Checked out connection " + conn.getRealHashCode() + " from pool.");
                     }
                 } else { // 没有空闲连接
-                    // 步骤2：活跃连接数没有到上限值，则创建新连接
+                    // 步骤2：活跃连接数没有到上限值，则创建新连接 并在创建成功之后，返回新建的连接；如果已达到最大上限，则往下执行
                     if (state.activeConnections.size() < poolMaximumActiveConnections) {
                         // 创建新数据库连接，并封装成PooledConnection对象
                         conn = new PooledConnection(dataSource.getConnection(), this);
@@ -439,7 +460,7 @@ public class PooledDataSource implements DataSource {
                             log.debug("Created connection " + conn.getRealHashCode() + ".");
                         }
                     } else {// 活跃连接数已到上限值，则无法创建新连接
-                        // 步骤3：检测超时连接
+                        // 步骤3：检测超时连接 ，如果有，则将超时的连接从活跃连接集合中移除，并重复步骤 2；如果没有，则执行下一步
                         // 获取最早的活跃连接
                         PooledConnection oldestActiveConnection = state.activeConnections.get(0);
                         long longestCheckoutTime = oldestActiveConnection.getCheckoutTime();
