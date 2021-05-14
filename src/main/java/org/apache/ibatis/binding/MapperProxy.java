@@ -38,10 +38,27 @@ public class MapperProxy<T> implements InvocationHandler, Serializable {
     private static final long serialVersionUID = -4724728412955527868L;
     private static final int ALLOWED_MODES = MethodHandles.Lookup.PRIVATE | MethodHandles.Lookup.PROTECTED
             | MethodHandles.Lookup.PACKAGE | MethodHandles.Lookup.PUBLIC;
+
+    /**
+     * MethodHandle 简介
+     * 从 Java 7 开始，除了反射之外，在 java.lang.invoke 包中新增了 MethodHandle 这个类，它的基本功能与反射中的 Method 类似，
+     * 但它比反射更加灵活。反射是 Java API 层面支持的一种机制，MethodHandle 则是 JVM 层支持的机制，相较而言，反射更加重量级，MethodHandle 则更轻量级，性能也比反射更好些
+     */
+
+
+    // 针对 JDK 8 中的特殊处理，该字段指向了 MethodHandles.Lookup 的构造方法
     private static final Constructor<Lookup> lookupConstructor;
+
+    // ：除了 JDK 8 之外的其他 JDK 版本会使用该字段，该字段指向 MethodHandles.privateLookupIn() 方法
     private static final Method privateLookupInMethod;
+
+    // 记录了当前 MapperProxy 关联的 SqlSession 对象。在与当前 MapperProxy 关联的代理对象中，会用该 SqlSession 访问数据库
     private final SqlSession sqlSession;
+
+    // Mapper 接口类型，也是当前 MapperProxy 关联的代理对象实现的接口类型
     private final Class<T> mapperInterface;
+
+    // 用于缓存 MapperMethodInvoker 对象的集合。methodCache 中的 key 是 Mapper 接口中的方法，value 是该方法对应的 MapperMethodInvoker 对象
     private final Map<Method, MapperMethodInvoker> methodCache;
 
     public MapperProxy(SqlSession sqlSession, Class<T> mapperInterface, Map<Method, MapperMethodInvoker> methodCache) {

@@ -50,6 +50,11 @@ public class ParamNameResolver {
      * <li>aMethod(int a, RowBounds rb, int b) -&gt; {{0, "0"}, {2, "1"}}</li>
      * </ul>
      */
+    // 记录了各个参数在参数列表中的位置以及参数名称，其中 key 是参数在参数列表中的位置索引，value 为参数的名称。
+    // 我们可以通过 @Param 注解指定一个参数名称，如果没有特别指定，则默认使用参数列表中的变量名称作为其名称，这与 ParamNameResolver 的 useActualParamName 字段相关。useActualParamName 是一个全局配置
+    // 如果我们将 useActualParamName 配置为 false，ParamNameResolver 会使用参数的下标索引作为其名称
+    // 另外，names 集合会跳过 RowBounds 类型以及 ResultHandler 类型的参数
+    // 如果使用下标索引作为参数名称，在 names 集合中就会出现 KV 不一致的场景
     private final SortedMap<Integer, String> names;
 
     private boolean hasParamAnnotation;
@@ -131,6 +136,7 @@ public class ParamNameResolver {
      *          the args
      * @return the named params
      */
+    //我们再来看如何从 names 集合中查询参数名称，该部分逻辑在 ParamNameResolver.getNamedParams() 方法，其中会将 Mapper 接口方法的实参与 names 集合中记录的参数名称相关联
     public Object getNamedParams(Object[] args) {
         // 获取方法中非特殊类型(RowBounds类型和ResultHandler类型)的参数个数
         final int paramCount = names.size();

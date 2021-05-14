@@ -47,9 +47,11 @@ import org.apache.ibatis.session.SqlSession;
 public class MapperMethod {
 
     // 记录了SQL语句的名称和类型
+    // 通过 name 字段记录了关联 SQL 语句的唯一标识，通过 type 字段（SqlCommandType 类型）维护了 SQL 语句的操作类型，
+    // 这里 SQL 语句的操作类型分为 INSERT、UPDATE、DELETE、SELECT 和 FLUSH 五种
     private final SqlCommand command;
 
-
+    // 维护了 Mapper 接口中方法的相关信息
     private final MethodSignature method;
 
     public MapperMethod(Class<?> mapperInterface, Method method, Configuration config) {
@@ -281,6 +283,7 @@ public class MapperMethod {
             return type;
         }
 
+        //不仅会尝试根据 SQL 语句的唯一标识从 Configuration 全局配置对象中查找关联的 MappedStatement 对象，还会尝试顺着 Mapper 接口的继承树进行查找，直至查找成功为止
         private MappedStatement resolveMappedStatement(Class<?> mapperInterface, String methodName,
                                                        Class<?> declaringClass, Configuration configuration) {
             // 将Mapper接口名称和方法名称拼接起来作为SQL语句唯一标识
@@ -308,17 +311,31 @@ public class MapperMethod {
         }
     }
 
+
     public static class MethodSignature {
 
+        /**
+         * 用于表示方法返回值是否为 Collection 集合或数组、Map 集合、void、Cursor、Optional 类型。
+         */
         private final boolean returnsMany;
         private final boolean returnsMap;
         private final boolean returnsVoid;
         private final boolean returnsCursor;
         private final boolean returnsOptional;
+
+        // 方法返回值的具体类型
         private final Class<?> returnType;
+
+        // 如果方法的返回值为 Map 集合，则通过 mapKey 字段记录了作为 key 的列名。mapKey 字段的值是通过解析方法上的 @MapKey 注解得到的
         private final String mapKey;
+
+        // 记录了 Mapper 接口方法的参数列表中 ResultHandler 类型参数的位置
         private final Integer resultHandlerIndex;
+
+        // 记录了 Mapper 接口方法的参数列表中 RowBounds 类型参数的位置
         private final Integer rowBoundsIndex;
+
+        // 用来解析方法参数列表的工具类
         private final ParamNameResolver paramNameResolver;
 
         public MethodSignature(Configuration configuration, Class<?> mapperInterface, Method method) {
