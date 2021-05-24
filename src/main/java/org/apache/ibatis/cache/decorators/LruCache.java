@@ -25,6 +25,9 @@ import org.apache.ibatis.cache.Cache;
  *
  * @author Clinton Begin
  */
+
+//LruCache 就是使用 LRU 策略清理缓存的装饰器实现，如果 LruCache 发现缓存需要清理，它会清除最近最少使用的缓存条目
+// 使用linkedHashMap实现
 public class LruCache implements Cache {
 
     private final Cache delegate;

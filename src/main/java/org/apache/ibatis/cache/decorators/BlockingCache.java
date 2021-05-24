@@ -34,6 +34,17 @@ import org.apache.ibatis.cache.CacheException;
  *
  * @author Eduardo Macarron
  */
+
+// BlockingCache 是在原有 Cache 实现之上添加了阻塞线程的特性
+
+/**
+ * 对于一个 Key 来说，同一时刻，BlockingCache 只会让一个业务线程到数据库中去查找，查找到结果之后，会添加到 BlockingCache 中缓存。
+ *
+ * 作为一个装饰器，BlockingCache 自然会包含一个 Cache 类型的字段，也就是 delegate 字段。除此之外，BlockingCache 还包含了一个 locks
+ *
+ * 集合（ConcurrentHashMap<Object, CountDownLatch> 类型）和一个 timeout 字段（long 类型），其中 locks 为每个 Key 分配了一个 CountDownLatch 用来控制并发访问，timeout 指定了一个线程在 BlockingCache 上阻塞的最长时间。
+ */
+
 public class BlockingCache implements Cache {
 
     private long timeout;
@@ -66,6 +77,7 @@ public class BlockingCache implements Cache {
         }
     }
 
+    // 其中需要先调用 acquireLock() 方法获取锁，才能查询 delegate 缓存，命中缓存之后会立刻调用 releaseLock() 方法释放锁，如果未命中缓存则不会释放锁
     @Override
     public Object getObject(Object key) {
         acquireLock(key); // 获取查询key关联的锁

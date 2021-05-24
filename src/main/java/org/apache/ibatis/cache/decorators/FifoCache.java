@@ -25,6 +25,10 @@ import org.apache.ibatis.cache.Cache;
  *
  * @author Clinton Begin
  */
+
+// 它是 FIFO（先入先出）策略的装饰器。在系统运行过程中，我们会不断向 Cache 中增加缓存条目，
+// 当 Cache 中的缓存条目达到上限的时候，则会将 Cache 中最早写入的缓存条目清理掉，这也就是先入先出的基本原理
+
 public class FifoCache implements Cache {
 
     private final Cache delegate;
