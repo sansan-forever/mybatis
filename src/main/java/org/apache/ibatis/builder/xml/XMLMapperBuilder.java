@@ -50,6 +50,8 @@ import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.TypeHandler;
 
 /**
+ *
+ * MyBatis 会为每个 Mapper.xml 映射文件创建一个 XMLMapperBuilder 实例完成解析。
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
@@ -124,12 +126,16 @@ public class XMLMapperBuilder extends BaseBuilder {
             // 使用MapperBuilderAssistant的currentNamespace字段记录当前namespace值
             builderAssistant.setCurrentNamespace(namespace);
             // 解析<cache-ref>标签
+            // 可以通过 <cache> 标签为每个 namespace 开启二级缓存，同时还会将 namespace 与关联的二级缓存 Cache对象记录到 Configuration.caches 集合中，
+            // 也就是说二级缓存是 namespace 级别的。但是，在有的场景中，我们会需要在多个 namespace 共享同一个二级缓存，也就是共享同一个 Cache 对象。
+            // MyBatis提供了 <cache-ref> 标签来引用另一个 namespace 的二级缓存, cacheRefElement() 方法是处理 <cache-ref> 标签的核心逻辑所在，在 Configuration 中维护了一个 cacheRefMap 字段（HashMap<String,String> 类型），
+            // 其中的 Key 是 <cache-ref> 标签所属的namespace 标识，Value 值是 <cache-ref> 标签引用的 namespace 值，这样的话，就可以将两个namespace 关联起来了，即这两个 namespace 共用一个 Cache对象
             cacheRefElement(context.evalNode("cache-ref"));
             // 解析<cache>节点
             cacheElement(context.evalNode("cache"));
             // 解析<parameterMap>节点（该节点已废弃，不再推荐使用，不做详细介绍）
             parameterMapElement(context.evalNodes("/mapper/parameterMap"));
-            // 解析<resultMap>节点
+            // 解析<resultMap>节点, MyBatis 提供了 <resultMap> 标签来定义结果集与 Java 对象之间的映射规则。
             resultMapElements(context.evalNodes("/mapper/resultMap"));
             // 解析<sql>节点
             sqlElement(context.evalNodes("/mapper/sql"));
@@ -212,12 +218,12 @@ public class XMLMapperBuilder extends BaseBuilder {
         if (context != null) {
             // 当前namespace与被引用namespace的关联关系，记录到cacheRefMap集合中
             configuration.addCacheRef(builderAssistant.getCurrentNamespace(), context.getStringAttribute("namespace"));
-            // 创建CacheRefResolver对象
+            // 创建CacheRefResolver对象记录了被引用的 namespace以及当前 namespace 关联的MapperBuilderAssistant 对象
             CacheRefResolver cacheRefResolver =
                     new CacheRefResolver(builderAssistant,
                             context.getStringAttribute("namespace"));
             try {
-                // 解析Cache引用
+                // 解析Cache引用,方法从 Configuration.caches 集合中，根据被引用的namespace 查找共享的 Cache 对象来初始化 currentCache，而不再创建新的Cache 对象，从而实现二级缓存的共享。
                 cacheRefResolver.resolveCacheRef();
             } catch (IncompleteElementException e) {
                 // 如果解析过程出现异常，则暂时将CacheRefResolver对象记录到
@@ -227,6 +233,8 @@ public class XMLMapperBuilder extends BaseBuilder {
         }
     }
 
+    // Cache 接口及其实现是MyBatis 一级缓存和二级缓存的基础，其中，一级缓存是默认开启的，
+    // 而二级缓存默认情况下并没有开启，如有需要，可以通过<cache>标签为指定的namespace 开启二级缓存。
     private void cacheElement(XNode context) {
         if (context != null) {
             // 获取<cache>节点的type属性，默认值是PERPETUAL
@@ -310,6 +318,9 @@ public class XMLMapperBuilder extends BaseBuilder {
         List<ResultMapping> resultMappings = new ArrayList<>(additionalResultMappings);
         List<XNode> resultChildren = resultMapNode.getChildren();
         // 解析<resultMap>标签的子标签
+        // 解析<resultMap>标签下的各个子标签，每个子标签都会生成一个ResultMapping 对象，
+        // 这个 ResultMapping 对象会被添加到resultMappings 集合（List<ResultMapping> 类型）中暂存。
+        // 这里会涉及 <id>、<result>、<association>、<collection>、<discriminator> 等子标签的解析
         for (XNode resultChild : resultChildren) {
             // 解析<constructor>子标签
             if ("constructor".equals(resultChild.getName())) {
@@ -323,6 +334,7 @@ public class XMLMapperBuilder extends BaseBuilder {
                 if ("id".equals(resultChild.getName())) {
                     flags.add(ResultFlag.ID);
                 }
+
                 resultMappings.add(buildResultMappingFromContext(resultChild, typeClass, flags));
             }
         }
@@ -330,10 +342,13 @@ public class XMLMapperBuilder extends BaseBuilder {
         // 趣的读者请参考XNode.getValueBasedIdentifier()方法的实现
         String id = resultMapNode.getStringAttribute("id",
                 resultMapNode.getValueBasedIdentifier());
+
         // 获取<resultMap>标签的extends、autoMapping等属性
         String extend = resultMapNode.getStringAttribute("extends");
         Boolean autoMapping = resultMapNode.getBooleanAttribute("autoMapping");
         // 创建ResultMapResolver对象
+        // ResultMapResolver 会根据上面解析到的ResultMappings 集合以及 <resultMap> 标签的属性构造 ResultMap 对象，
+        // 并将其添加到 Configuration.resultMaps 集合（StrictMap 类型）中。
         ResultMapResolver resultMapResolver =
                 new ResultMapResolver(builderAssistant, id, typeClass, extend, discriminator, resultMappings, autoMapping);
         try {
@@ -433,6 +448,16 @@ public class XMLMapperBuilder extends BaseBuilder {
         return context.getStringAttribute("databaseId") == null;
     }
 
+    /**
+     * 方法解析上述标签得到 ResultMapping 对象
+     * 获取当前标签的property的属性值作为目标属性名称（如果 <constructor> 标签使用的是 name 属性）；
+     * 获取 column、javaType、typeHandler、jdbcType、select 等一系列属性，与获取 property 属性的方式类似
+     * 根据上面解析到的信息，调用 MapperBuilderAssistant.buildResultMapping() 方法创建 ResultMapping 对象
+     * @param context
+     * @param resultType
+     * @param flags
+     * @return
+     */
     private ResultMapping buildResultMappingFromContext(XNode context, Class<?> resultType, List<ResultFlag> flags) {
         String property;
         if (flags.contains(ResultFlag.CONSTRUCTOR)) {
@@ -453,11 +478,16 @@ public class XMLMapperBuilder extends BaseBuilder {
         // 还会涉及匿名嵌套映射的解析过程
         String nestedResultMap = context.getStringAttribute("resultMap", () ->
                 processNestedResultMappings(context, Collections.emptyList(), resultType));
+        // 默认情况下，在至少一个被映射到属性的列不为空时，子对象才会被创建。 你可以在这个属性上指定非空的列来改变默认行为，
+        // 指定后，Mybatis 将只在这些列非空时才创建一个子对象可以使用逗号分隔来指定多个列
         String notNullColumn = context.getStringAttribute("notNullColumn");
         String columnPrefix = context.getStringAttribute("columnPrefix");
         String typeHandler = context.getStringAttribute("typeHandler");
         String resultSet = context.getStringAttribute("resultSet");
+
+        // 指定外键对应的列名，指定的列将与父类型中 column 的给出的列进行匹配
         String foreignColumn = context.getStringAttribute("foreignColumn");
+
         boolean lazy = "lazy".equals(context.getStringAttribute("fetchType", configuration.isLazyLoadingEnabled() ? "lazy" : "eager"));
         Class<?> javaTypeClass = resolveClass(javaType);
         Class<? extends TypeHandler<?>> typeHandlerClass = resolveClass(typeHandler);

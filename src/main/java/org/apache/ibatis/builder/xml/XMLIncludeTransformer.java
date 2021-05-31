@@ -58,6 +58,8 @@ public class XMLIncludeTransformer {
      * @param variablesContext
      *          Current context for static variables with values
      */
+    // 在解析 SQL 标签之前，MyBatis 会先将 <include> 标签转换成对应的 SQL 片段（即定义在 <sql> 标签内的文本），
+    // 这个转换过程是在 XMLIncludeTransformer.applyIncludes() 方法中实现的（其中不仅包含了 <include> 标签的处理，还包含了“${}”占位符的处理）
     private void applyIncludes(Node source, final Properties variablesContext, boolean included) {
         if ("include".equals(source.getNodeName())) { // 处理<include>标签
             // 查找refid属性指向的<sql>标签，返回的是其深拷贝的Node对象

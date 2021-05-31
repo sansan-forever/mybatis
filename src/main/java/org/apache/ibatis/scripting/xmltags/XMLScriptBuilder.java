@@ -97,6 +97,7 @@ public class XMLScriptBuilder extends BaseBuilder {
                 // 如果解析到一个字标签，那么一定是动态SQL
                 // 这里会根据不同的标签，获取不同的NodeHandler，然后由NodeHandler进行后续解析
                 String nodeName = child.getNode().getNodeName();
+                // NodeHandler接口负责解析动态 SQL 内的标签
                 NodeHandler handler = nodeHandlerMap.get(nodeName);
                 if (handler == null) {
                     throw new BuilderException("Unknown element <" + nodeName + "> in SQL statement.");

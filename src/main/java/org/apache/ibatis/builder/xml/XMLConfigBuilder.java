@@ -51,11 +51,25 @@ import org.apache.ibatis.type.JdbcType;
  * @author Clinton Begin
  * @author Kazuki Shimizu
  */
+
+/**
+ * MyBatis 初始化的第一个步骤就是加载和解析 mybatis-config.xml 这个全局配置文件，入口是 XMLConfigBuilder 这个 Builder 对象，它由 SqlSessionFactoryBuilder.build() 方法创建
+ *
+ * XMLConfigBuilder 会解析 mybatis-config.xml 配置文件得到对应的 Configuration 全局配置对象，
+ * 然后 SqlSessionFactoryBuilder 会根据得到的 Configuration 全局配置对象创建一个 DefaultSqlSessionFactory 对象返回给上层使用
+ */
 public class XMLConfigBuilder extends BaseBuilder {
 
+    // 状态标识字段，记录当前 XMLConfigBuilder 对象是否已经成功解析完 mybatis-config.xml 配置文件
     private boolean parsed;
+
+    // XPathParser 对象是一个 XML 解析器，这里的 parser 对象就是用来解析 mybatis-config.xml 配置文件的
     private final XPathParser parser;
+
+    // 标签定义的环境名称
     private String environment;
+
+    // ReflectorFactory 接口的核心功能是实现对 Reflector 对象的创建和缓存
     private final ReflectorFactory localReflectorFactory = new DefaultReflectorFactory();
 
     public XMLConfigBuilder(Reader reader) {
@@ -112,7 +126,7 @@ public class XMLConfigBuilder extends BaseBuilder {
             loadCustomLogImpl(settings);
             // 处理<typeAliases>标签
             typeAliasesElement(root.evalNode("typeAliases"));
-            // 处理<plugins>标签
+            // 处理<plugins>标签即初始化插件配置
             pluginElement(root.evalNode("plugins"));
             // 处理<objectFactory>标签
             objectFactoryElement(root.evalNode("objectFactory"));
@@ -125,6 +139,11 @@ public class XMLConfigBuilder extends BaseBuilder {
             // 处理<environments>标签
             environmentsElement(root.evalNode("environments"));
             // 处理<databaseIdProvider>标签
+
+            /**
+             *  通过 <databaseIdProvider> 标签定义需要支持的全部数据库的 DatabaseId，在后续编写 Mapper 映射配置文件的时候，就可以为同一个业务场景定义不同的 SQL 语句（带有不同的 DataSourceId），
+             *  来支持不同的数据库，这里就是靠 DatabaseId 来确定哪个 SQL 语句支持哪个数据库的
+             */
             databaseIdProviderElement(root.evalNode("databaseIdProvider"));
             // 处理<typeHandlers>标签
             typeHandlerElement(root.evalNode("typeHandlers"));

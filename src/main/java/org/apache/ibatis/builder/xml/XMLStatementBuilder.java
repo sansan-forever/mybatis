@@ -34,6 +34,7 @@ import org.apache.ibatis.scripting.LanguageDriver;
 import org.apache.ibatis.session.Configuration;
 
 /**
+ *  解析 SQL 语句标签
  * @author Clinton Begin
  */
 public class XMLStatementBuilder extends BaseBuilder {
@@ -65,6 +66,8 @@ public class XMLStatementBuilder extends BaseBuilder {
 
         // 根据SQL节点的名称决定其SqlCommandType
         String nodeName = context.getNode().getNodeName();
+
+        // sqlCommandType 字段记录了 SQL 语句的类型（INSERT、UPDATE、DELETE、SELECT 或 FLUSH 类型
         SqlCommandType sqlCommandType = SqlCommandType.valueOf(nodeName.toUpperCase(Locale.ENGLISH));
         // 获取SQL标签的属性值，例如，fetchSize、timeout、parameterType、parameterMap、
         // resultMap、resultType、lang、resultSetType、flushCache、useCache等。
@@ -85,8 +88,10 @@ public class XMLStatementBuilder extends BaseBuilder {
         LanguageDriver langDriver = getLanguageDriver(lang);
 
         // Parse selectKey after includes and remove them.
+        // parseSelectKeyNode() 方法是解析 <selectKey> 标签的核心所在，其中会解析 <selectKey> 标签的各个属性，并根据这些属性值将其中的 SQL 语句解析成 MappedStatement 对象
         processSelectKeyNodes(id, parameterTypeClass, langDriver);
 
+        // 当执行到这里的时候，<selectKey>和<include>标签已经被解析完毕，并删除掉了
         // Parse the SQL (pre: <selectKey> and <include> were parsed and removed)
         KeyGenerator keyGenerator;
         String keyStatementId = id + SelectKeyGenerator.SELECT_KEY_SUFFIX;
@@ -101,8 +106,16 @@ public class XMLStatementBuilder extends BaseBuilder {
 
         // 下面是解析SQL语句的逻辑，也是parseStatementNode()方法的核心
         // 通过LanguageDriver.createSqlSource()方法创建SqlSource对象
+        // todo 在内存中，MyBatis 使用 SqlSource 接口来表示解析之后的 SQL 语句，其中的 SQL 语句只是一个中间态，可能包含动态 SQL 标签或占位符等信息，无法直接使用
+        // LanguageDriver的XMLLanguageDriver
         SqlSource sqlSource = langDriver.createSqlSource(configuration, context, parameterTypeClass);
+
+        // 获取SQL标签中配置的resultSets、keyProperty、keyColumn等属性，以及前面解析<selectKey>标签得到的KeyGenerator对象等，
+        // 这些信息将会填充到MappedStatement对象中
+
+        // MyBatis 在内存中使用 MappedStatement 对象表示上述 SQL 标签。在 MappedStatement 中的 sqlSource 字段记录了 SQL 标签中定义的 SQL 语句
         StatementType statementType = StatementType.valueOf(context.getStringAttribute("statementType", StatementType.PREPARED.toString()));
+
         Integer fetchSize = context.getIntAttribute("fetchSize");
         Integer timeout = context.getIntAttribute("timeout");
         String parameterMap = context.getStringAttribute("parameterMap");

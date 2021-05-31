@@ -102,8 +102,10 @@ public class CacheBuilder {
         if (PerpetualCache.class.equals(cache.getClass())) {
             // 如果是PerpetualCache类型，则为其添加decorators集合中指定的装饰器
             for (Class<? extends Cache> decorator : decorators) {
-                // 通过反射创建Cache装饰器，同时设置properties中的各个属性，完成初始化
+                // 通过反射创建Cache装饰器，同时设置properties中的各个属性，完成初始化,
+                // todo 每个装饰器都持有源cache类，所以通过构造方法来创建装饰后的对象，在循环中则是经过多层次包装
                 cache = newCacheDecoratorInstance(decorator, cache);
+                //依赖MetaObject将properties中配置信息设置到Cache的各个属性中，同时调用Cache的initialize()方法完成初始化
                 setCacheProperties(cache);
             }
             // 根据readWrite、blocking、clearInterval等配置，

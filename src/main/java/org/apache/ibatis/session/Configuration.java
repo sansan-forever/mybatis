@@ -963,6 +963,16 @@ public class Configuration {
         }
     }
 
+    /**
+     * StrictMap 继承了 HashMap，并且覆盖了 HashMap 的一些行为，例如，相较于 HashMap 的 put() 方法，StrictMap 的 put() 方法有如下几点不同：
+     *
+     * 如果检测到重复 Key 的写入，会直接抛出异常；
+     *
+     * 在没有重复 Key的情况下，会正常写入 KV 数据，与此同时，还会根据 Key产生一个 shortKey，shortKey 与完整 Key 指向同一个 Value 值；
+     *
+     * 如果 shortKey 已经存在，则将 value 修改成 Ambiguity 对象，Ambiguity 对象表示这个 shortKey 存在二义性，后续通过 StrictMap的get() 方法获取该 shortKey 的时候，会抛出异常。
+     * @param <V>
+     */
     protected static class StrictMap<V> extends HashMap<String, V> {
 
         private static final long serialVersionUID = -4950446264854982944L;

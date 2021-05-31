@@ -42,7 +42,7 @@ class ReflectorTest {
   @Test
   void testConcurrentHashMap() {
     final ConcurrentMap<String, Student> reflectorMap = new ConcurrentHashMap<>();
-    reflectorMap.computeIfAbsent("1", Student::new);
+    reflectorMap.computeIfAbsent("class", Student::new);
     System.out.println(1);
   }
 
